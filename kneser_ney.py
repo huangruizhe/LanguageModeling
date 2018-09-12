@@ -122,6 +122,26 @@ class NgramCounts:
         if lines_processed == 0 or args.verbose > 0:
             print("make_phone_lm.py: processed {0} lines of input".format(lines_processed), file=sys.stderr)
 
+    def cal_discounting_constants(self):
+        # For each order N of N-grams, we calculate discounting constant D_N = n1_N / (n1_N + 2 * n2_N),
+        # where n1_N is the number of unique N-grams with count = 1 (counts-of-counts).
+        # This constant is used similarly to absolute discounting.
+        # Return value: d is a list of floats, where d[N+1] = D_N
+
+        d = [0] # for the lowest order, i.e., 1-gram, we do not need to discount, thus the constant is 0
+        for n in range(1, self.ngram_order):
+            this_order_counts = self.counts[n]
+            n1 = 0
+            n2 = 0
+            for hist, counts_for_hist in this_order_counts.items():
+                stat = Counter(counts_for_hist.word_to_count.values())
+                n1 += stat[1]
+                n2 += stat[2]
+            assert n1 + 2 * n2 > 0
+            d.append(n1 * 1.0 / (n1 + 2 * n2))
+        print(d)
+        return d
+
     def print_raw_counts(self, info_string):
         # these are useful for debug.
         print(info_string)
@@ -159,6 +179,7 @@ if __name__ == "__main__":
     ngram_counts = NgramCounts(args.ngram_order)
     # ngram_counts.add_raw_counts_from_standard_input()
     ngram_counts.add_raw_counts_from_file("data/c5.txt")
-    ngram_counts.print_raw_counts("Raw counts:")
-    ngram_counts.print_modified_counts("Modified counts:")
+    # ngram_counts.print_raw_counts("Raw counts:")
+    # ngram_counts.print_modified_counts("Modified counts:")
+    ngram_counts.cal_discounting_constants()
 
