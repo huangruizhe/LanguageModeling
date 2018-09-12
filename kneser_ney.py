@@ -6,7 +6,6 @@
 
 import sys
 import math
-import random
 import argparse
 from collections import Counter, defaultdict
 
@@ -26,7 +25,10 @@ class CountsForHistory:
         # The 'lambda: defaultdict(float)' is an anonymous function taking no
         # arguments that returns a new defaultdict(float).
         self.word_to_count = defaultdict(int)
-        self.word_to_context = defaultdict(set)
+        self.word_to_context = defaultdict(set)  # using a set to count the number of unique contexts
+        self.word_to_f = dict()  # discounted probability
+        self.bow = 1             # back-off weight
+        self.word_to_p = dict()  # the final probability
         self.total_count = 0
 
     def words(self):
@@ -70,6 +72,8 @@ class NgramCounts:
         self.counts = []
         for n in range(ngram_order):
             self.counts.append(defaultdict(lambda: CountsForHistory()))
+
+        self.d = []  # list of discounting factor for each order of ngram
 
     # adds a raw count (called while processing input data).
     # Suppose we see the sequence '6 7 8 9' and ngram_order=4, 'history'
@@ -128,7 +132,7 @@ class NgramCounts:
         # This constant is used similarly to absolute discounting.
         # Return value: d is a list of floats, where d[N+1] = D_N
 
-        d = [0] # for the lowest order, i.e., 1-gram, we do not need to discount, thus the constant is 0
+        self.d = [0]  # for the lowest order, i.e., 1-gram, we do not need to discount, thus the constant is 0
         for n in range(1, self.ngram_order):
             this_order_counts = self.counts[n]
             n1 = 0
@@ -138,9 +142,34 @@ class NgramCounts:
                 n1 += stat[1]
                 n2 += stat[2]
             assert n1 + 2 * n2 > 0
-            d.append(n1 * 1.0 / (n1 + 2 * n2))
-        print(d)
-        return d
+            self.d.append(n1 * 1.0 / (n1 + 2 * n2))
+
+    def cal_f(self):
+        # f(a_z) = (c(a_z) - D0) / c(a_)    ;; for highest order N-grams
+        # f(_z)  = (n(*_z) - D1) / n(*_*)	;; for lower order N-grams
+
+        # highest order N-grams
+        n = self.ngram_order - 1
+        this_order_counts = self.counts[n]
+        for hist, counts_for_hist in this_order_counts.items():
+            for w, c in counts_for_hist.word_to_count.items():
+                counts_for_hist.word_to_f[w] = max((c - self.d[n]), 0) * 1.0 / counts_for_hist.total_count
+
+        # lower order N-grams
+        for n in range(0, self.ngram_order - 1):
+            this_order_counts = self.counts[n]
+            for hist, counts_for_hist in this_order_counts.items():
+                n_star_star = 0
+                for w in counts_for_hist.word_to_count.keys():
+                    n_star_star += len(counts_for_hist.word_to_context[w])
+                if n_star_star != 0:
+                    for w in counts_for_hist.word_to_count.keys():
+                        n_star_z = len(counts_for_hist.word_to_context[w])
+                        counts_for_hist.word_to_f[w] = max((n_star_z - self.d[n]), 0) * 1.0 / n_star_star
+                else:  # patterns begin with <s>, they do not have "modified count", so use raw count instead
+                    for w in counts_for_hist.word_to_count.keys():
+                        n_star_z = counts_for_hist.word_to_count[w]
+                        counts_for_hist.word_to_f[w] = max((n_star_z - self.d[n]), 0) * 1.0 / counts_for_hist.total_count
 
     def print_raw_counts(self, info_string):
         # these are useful for debug.
@@ -173,6 +202,23 @@ class NgramCounts:
         for r in res:
             print(r)
 
+    def print_f(self, info_string):
+        # these are useful for debug.
+        print(info_string)
+        res = []
+        for this_order_counts in self.counts:
+            for hist, counts_for_hist in this_order_counts.items():
+                for w in counts_for_hist.word_to_count.keys():
+                    ngram = " ".join(hist) + " " + w
+
+                    f = counts_for_hist.word_to_f[w]
+                    if f == 0:
+                        f = 1e-99
+                    res.append("{0}\t{1}".format(ngram.strip(), math.log(f, 10)))
+        res.sort(reverse=True)
+        for r in res:
+            print(r)
+
 
 if __name__ == "__main__":
 
@@ -182,4 +228,6 @@ if __name__ == "__main__":
     # ngram_counts.print_raw_counts("Raw counts:")
     # ngram_counts.print_modified_counts("Modified counts:")
     ngram_counts.cal_discounting_constants()
+    ngram_counts.cal_f()
+    ngram_counts.print_f("F values (discounted probabilities):")
 

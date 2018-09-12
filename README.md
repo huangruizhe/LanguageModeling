@@ -2,7 +2,7 @@
 
 This is an implementation of computing Kneser-Ney smoothed 
 language model in the same way as 
-[srilm](http://www.speech.sri.com/projects/srilm/manpages/ngram-discount.7.html)
+[srilm](http://www.speech.sri.com/projects/srilm/manpages/ngram-discount.7.html).
 
 This is a back-off, unmodified version of Kneser-Ney smoothing, 
 which produces the same results as the following command 
