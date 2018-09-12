@@ -135,11 +135,30 @@ class NgramCounts:
         for r in res:
             print(r)
 
+    def print_modified_counts(self, info_string):
+        # these are useful for debug.
+        print(info_string)
+        res = []
+        for this_order_counts in self.counts:
+            for hist, counts_for_hist in this_order_counts.items():
+                for w in counts_for_hist.word_to_count.keys():
+                    ngram = " ".join(hist) + " " + w
+                    modified_count = len(counts_for_hist.word_to_context[w])
+                    raw_count = counts_for_hist.word_to_count[w]
+                    if modified_count == 0:
+                        res.append("{0}\t{1}".format(ngram.strip(), raw_count))
+                    else:
+                        res.append("{0}\t{1}".format(ngram.strip(), modified_count))
+        res.sort(reverse=True)
+        for r in res:
+            print(r)
+
 
 if __name__ == "__main__":
 
     ngram_counts = NgramCounts(args.ngram_order)
     # ngram_counts.add_raw_counts_from_standard_input()
-    ngram_counts.add_raw_counts_from_file("../data/c5.txt")
+    ngram_counts.add_raw_counts_from_file("data/c5.txt")
     ngram_counts.print_raw_counts("Raw counts:")
+    ngram_counts.print_modified_counts("Modified counts:")
 
