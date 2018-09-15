@@ -21,9 +21,9 @@ ngram-count
 ```
 
 In the future, we might (1) add more options or flexibilities to this 
-script as needed, (2) consider efficiency issues (regarding time and space) 
-of the implementation, and (3) consider more corner cases to make 
-the computation robust.
+script as needed, (2) consider scalability and efficiency issues 
+(regarding time and space) of the implementation, 
+and (3) consider more corner cases to make the computation robust.
 
 
 Useful References:

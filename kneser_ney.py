@@ -215,7 +215,7 @@ class NgramCounts:
                             sum_z1_f_a_z += a_counts_for_hist.word_to_f[u]
 
                         sum_z1_f_z = 0
-                        _ = hist[1:]
+                        _ = a_[1:]
                         _counts_for_hist = self.counts[len(_)][_]
                         for u in a_counts_for_hist.word_to_count.keys():  # Should be careful here: what is Z1
                             sum_z1_f_z += _counts_for_hist.word_to_f[u]
@@ -325,9 +325,9 @@ class NgramCounts:
                     if prob == 0:  # f(<s>) is always 0
                         prob = 1e-99
 
-                    line = '{0}\t{1}'.format('%.5f' % math.log10(prob), ' '.join(ngram))
+                    line = '{0}\t{1}'.format('%.7f' % math.log10(prob), ' '.join(ngram))
                     if bow is not None:
-                        line += '\t{0}'.format('%.5f' % math.log10(bow))
+                        line += '\t{0}'.format('%.7f' % math.log10(bow))
                     print(line)
             print('')
         print('\\end\\')
@@ -337,7 +337,7 @@ if __name__ == "__main__":
 
     ngram_counts = NgramCounts(args.ngram_order)
     # ngram_counts.add_raw_counts_from_standard_input()
-    ngram_counts.add_raw_counts_from_file("data/c6.txt")
+    ngram_counts.add_raw_counts_from_file("data/c5.txt")
     # ngram_counts.print_raw_counts("Raw counts:")
     # ngram_counts.print_modified_counts("Modified counts:")
     ngram_counts.cal_discounting_constants()
