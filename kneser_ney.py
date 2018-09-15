@@ -4,14 +4,21 @@
 # Copyright 2018  Johns Hopkins University (Author: Ruizhe Huang)
 # Apache 2.0.
 
+# The original base can be found here: kaldi/egs/wsj/s5/utils/lang/make_phone_lm.py
+
 import sys
 import math
 import argparse
 from collections import Counter, defaultdict
 
 
-parser = argparse.ArgumentParser(description="")
+parser = argparse.ArgumentParser(description="""
+    Generate kneser-ney language model as arpa format. By default,
+    it will read the corpus from standard input, and output to standard output.
+    """)
 parser.add_argument("--ngram-order", type=int, default=4, choices=[2, 3, 4, 5, 6, 7], help="Order of n-gram")
+parser.add_argument("--text", type=str, default=None, help="Path to the corpus file")
+parser.add_argument("--lm", type=str, default=None, help="Path to output arpa file for language models")
 parser.add_argument("--verbose", type=int, default=0, choices=[0, 1, 2, 3, 4, 5], help="Verbose level")
 args = parser.parse_args()
 
