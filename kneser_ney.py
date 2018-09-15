@@ -132,6 +132,8 @@ class NgramCounts:
         # Return value: d is a list of floats, where d[N+1] = D_N
 
         self.d = [0]  # for the lowest order, i.e., 1-gram, we do not need to discount, thus the constant is 0
+                      # perhaps this is a special case: as I assumed we have seen all vocabularies in the dictionary,
+                      # but this is not the case for some other scenarios. We will fix this in the future
         for n in range(1, self.ngram_order):
             this_order_counts = self.counts[n]
             n1 = 0
@@ -174,6 +176,7 @@ class NgramCounts:
 
     def cal_bow(self):
         # bow(a_) = (1 - Sum_Z1 f(a_z)) / (1 - Sum_Z1 f(_z))
+        # Note that Z1 is the set of all words with c(a_z) > 0
         for this_order_counts in self.counts:
             for hist, counts_for_hist in this_order_counts.items():
                 if len(hist) == 0:
@@ -280,12 +283,12 @@ if __name__ == "__main__":
 
     ngram_counts = NgramCounts(args.ngram_order)
     # ngram_counts.add_raw_counts_from_standard_input()
-    ngram_counts.add_raw_counts_from_file("data/c5.txt")
+    ngram_counts.add_raw_counts_from_file("data/c6.txt")
     # ngram_counts.print_raw_counts("Raw counts:")
     # ngram_counts.print_modified_counts("Modified counts:")
     ngram_counts.cal_discounting_constants()
     ngram_counts.cal_f()
-    # ngram_counts.print_f("F values (discounted probabilities):")
-    ngram_counts.cal_bow()
-    ngram_counts.print_f_and_bow("F values (discounted probabilities) and back-off weights:")
+    ngram_counts.print_f("F values (discounted probabilities):")
+    # ngram_counts.cal_bow()
+    # ngram_counts.print_f_and_bow("F values (discounted probabilities) and back-off weights:")
 

@@ -20,3 +20,13 @@ ngram-count
     -lm lm.arpa
 ```
 
+In the future, we might (1) add more options or flexibilities to this 
+script as needed, (2) consider efficiency issues (regarding time and space) 
+of the implementation, and (3) consider more corner cases to make 
+the computation robust.
+
+
+Useful References:
+
+[1] [http://smithamilli.com/blog/kneser-ney/](http://smithamilli.com/blog/kneser-ney/)
+
