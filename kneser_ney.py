@@ -27,7 +27,7 @@ class CountsForHistory:
         self.word_to_count = defaultdict(int)
         self.word_to_context = defaultdict(set)  # using a set to count the number of unique contexts
         self.word_to_f = dict()  # discounted probability
-        self.bow = None          # back-off weight
+        self.word_to_bow = dict()  # back-off weight
         self.total_count = 0
 
     def words(self):
@@ -175,24 +175,52 @@ class NgramCounts:
                         counts_for_hist.word_to_f[w] = max((n_star_z - self.d[n]), 0) * 1.0 / counts_for_hist.total_count
 
     def cal_bow(self):
+        # Backoff weights are only necessary for ngrams which form a prefix of a longer ngram.
+        # Thus, two sorts of ngrams do not have a bow:
+        # 1) highest order ngram
+        # 2) ngrams ending in </s>
+        #
         # bow(a_) = (1 - Sum_Z1 f(a_z)) / (1 - Sum_Z1 f(_z))
         # Note that Z1 is the set of all words with c(a_z) > 0
-        for this_order_counts in self.counts:
+
+        # for this_order_counts in self.counts:
+        #     for hist, counts_for_hist in this_order_counts.items():
+        #         if len(hist) == 0:
+        #             continue
+
+        # highest order N-grams
+        n = self.ngram_order - 1
+        this_order_counts = self.counts[n]
+        for hist, counts_for_hist in this_order_counts.items():
+            for w in counts_for_hist.word_to_count.keys():
+                counts_for_hist.word_to_bow[w] = None
+
+        # lower order N-grams
+        for n in range(0, self.ngram_order - 1):
+            this_order_counts = self.counts[n]
             for hist, counts_for_hist in this_order_counts.items():
-                if len(hist) == 0:
-                    continue
-
-                sum_z1_f_a_z = 0
                 for w in counts_for_hist.word_to_count.keys():
-                    sum_z1_f_a_z += counts_for_hist.word_to_f[w]
+                    if w == self.eos_symbol:
+                        counts_for_hist.word_to_bow[w] = None
+                    else:
+                        a_ = hist + (w,)
 
-                sum_z1_f_z = 0
-                lower_hist = hist[1:]
-                lower_counts_for_hist = self.counts[len(lower_hist)][lower_hist]
-                for w in lower_counts_for_hist.word_to_count.keys():
-                    sum_z1_f_z += lower_counts_for_hist.word_to_f[w]
+                        assert len(a_) < self.ngram_order
+                        assert a_ in self.counts[len(a_)].keys()
 
-                counts_for_hist.bow = (1.0 - sum_z1_f_a_z) / (1.0 - sum_z1_f_z)
+                        a_counts_for_hist = self.counts[len(a_)][a_]
+
+                        sum_z1_f_a_z = 0
+                        for u in a_counts_for_hist.word_to_count.keys():
+                            sum_z1_f_a_z += a_counts_for_hist.word_to_f[u]
+
+                        sum_z1_f_z = 0
+                        _ = hist[1:]
+                        _counts_for_hist = self.counts[len(_)][_]
+                        for u in a_counts_for_hist.word_to_count.keys():  # Should be careful here: what is Z1
+                            sum_z1_f_z += _counts_for_hist.word_to_f[u]
+
+                        counts_for_hist.word_to_bow[w] = (1.0 - sum_z1_f_a_z) / (1.0 - sum_z1_f_z)
 
     def print_raw_counts(self, info_string):
         # these are useful for debug.
@@ -258,22 +286,16 @@ class NgramCounts:
                 for w in counts_for_hist.word_to_count.keys():
                     ngram = " ".join(hist) + " " + w
                     ngram = ngram.strip()
-                    ngram_tuple = hist + (w,)
 
                     f = counts_for_hist.word_to_f[w]
                     if f == 0:  # f(<s>) is always 0
                         f = 1e-99
 
-                    len_ngram = len(hist) + 1
-                    if len_ngram < self.ngram_order:
-                        if ngram_tuple in self.counts[len_ngram].keys():
-                            bow = self.counts[len_ngram][ngram_tuple].bow
-                            res.append("{1}\t{0}\t{2}".format(ngram, math.log(f, 10), math.log(bow, 10)))
-                        else:
-                            res.append("{1}\t{0}".format(ngram, math.log(f, 10)))
-                    else:
+                    bow = counts_for_hist.word_to_bow[w]
+                    if bow is None:
                         res.append("{1}\t{0}".format(ngram, math.log(f, 10)))
-
+                    else:
+                        res.append("{1}\t{0}\t{2}".format(ngram, math.log(f, 10), math.log(bow, 10)))
         res.sort(reverse=True)
         for r in res:
             print(r)
@@ -288,7 +310,7 @@ if __name__ == "__main__":
     # ngram_counts.print_modified_counts("Modified counts:")
     ngram_counts.cal_discounting_constants()
     ngram_counts.cal_f()
-    ngram_counts.print_f("F values (discounted probabilities):")
-    # ngram_counts.cal_bow()
-    # ngram_counts.print_f_and_bow("F values (discounted probabilities) and back-off weights:")
+    # ngram_counts.print_f("F values (discounted probabilities):")
+    ngram_counts.cal_bow()
+    ngram_counts.print_f_and_bow("F values (discounted probabilities) and back-off weights:")
 
