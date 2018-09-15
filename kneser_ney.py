@@ -7,6 +7,7 @@
 # The original base can be found here: kaldi/egs/wsj/s5/utils/lang/make_phone_lm.py
 
 import sys
+import os
 import math
 import argparse
 from collections import Counter, defaultdict
@@ -16,10 +17,10 @@ parser = argparse.ArgumentParser(description="""
     Generate kneser-ney language model as arpa format. By default,
     it will read the corpus from standard input, and output to standard output.
     """)
-parser.add_argument("--ngram-order", type=int, default=4, choices=[2, 3, 4, 5, 6, 7], help="Order of n-gram")
-parser.add_argument("--text", type=str, default=None, help="Path to the corpus file")
-parser.add_argument("--lm", type=str, default=None, help="Path to output arpa file for language models")
-parser.add_argument("--verbose", type=int, default=0, choices=[0, 1, 2, 3, 4, 5], help="Verbose level")
+parser.add_argument("-ngram-order", type=int, default=4, choices=[2, 3, 4, 5, 6, 7], help="Order of n-gram")
+parser.add_argument("-text", type=str, default=None, help="Path to the corpus file")
+parser.add_argument("-lm", type=str, default=None, help="Path to output arpa file for language models")
+parser.add_argument("-verbose", type=int, default=0, choices=[0, 1, 2, 3, 4, 5], help="Verbose level")
 args = parser.parse_args()
 
 
@@ -307,20 +308,22 @@ class NgramCounts:
         for r in res:
             print(r)
 
-    def print_as_arpa(self):
+    def print_as_arpa(self, fout=sys.stdout):
         # print as ARPA format.
 
-        print('\\data\\')
+        print('\\data\\', file=fout)
         for hist_len in range(self.ngram_order):
             # print the number of n-grams.
             print('ngram {0}={1}'.format(
                 hist_len + 1,
-                sum([len(counts_for_hist.word_to_f) for counts_for_hist in self.counts[hist_len].values()])))
+                sum([len(counts_for_hist.word_to_f) for counts_for_hist in self.counts[hist_len].values()])),
+                file=fout
+            )
 
-        print('')
+        print('', file=fout)
 
         for hist_len in range(self.ngram_order):
-            print('\\{0}-grams:'.format(hist_len + 1))
+            print('\\{0}-grams:'.format(hist_len + 1), file=fout)
 
             this_order_counts = self.counts[hist_len]
             for hist, counts_for_hist in this_order_counts.items():
@@ -335,16 +338,21 @@ class NgramCounts:
                     line = '{0}\t{1}'.format('%.7f' % math.log10(prob), ' '.join(ngram))
                     if bow is not None:
                         line += '\t{0}'.format('%.7f' % math.log10(bow))
-                    print(line)
-            print('')
-        print('\\end\\')
+                    print(line, file=fout)
+            print('', file=fout)
+        print('\\end\\', file=fout)
 
 
 if __name__ == "__main__":
 
     ngram_counts = NgramCounts(args.ngram_order)
-    # ngram_counts.add_raw_counts_from_standard_input()
-    ngram_counts.add_raw_counts_from_file("data/c5.txt")
+
+    if args.text is None:
+        ngram_counts.add_raw_counts_from_standard_input()
+    else:
+        assert os.path.isfile(args.text)
+        ngram_counts.add_raw_counts_from_file(args.text)
+
     # ngram_counts.print_raw_counts("Raw counts:")
     # ngram_counts.print_modified_counts("Modified counts:")
     ngram_counts.cal_discounting_constants()
@@ -352,5 +360,9 @@ if __name__ == "__main__":
     # ngram_counts.print_f("F values (discounted probabilities):")
     ngram_counts.cal_bow()
     # ngram_counts.print_f_and_bow("F values (discounted probabilities) and back-off weights:")
-    ngram_counts.print_as_arpa()
 
+    if args.lm is None:
+        ngram_counts.print_as_arpa()
+    else:
+        with open(args.lm, 'w') as f:
+            ngram_counts.print_as_arpa(fout=f)
