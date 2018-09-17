@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 
 # Copyright 2016  Johns Hopkins University (Author: Daniel Povey)
-# Copyright 2018  Johns Hopkins University (Author: Ruizhe Huang)
+#           2018  Ruizhe Huang
 # Apache 2.0.
 
-# The original base can be found here: kaldi/egs/wsj/s5/utils/lang/make_phone_lm.py
+# This is an implementation of computing Kneser-Ney smoothed language model
+# in the same way as srilm. This is a back-off, unmodified version of
+# Kneser-Ney smoothing, which produces the same results as the following
+# command (as an example) of srilm:
+#
+# $ ngram-count -order 4 -kn-modify-counts-at-end -ukndiscount -gt1min 0 -gt2min 0 -gt3min 0 -gt4min 0 \
+# -text corpus.txt -lm lm.arpa
+#
+# The data structure is based on: kaldi/egs/wsj/s5/utils/lang/make_phone_lm.py
+# The smoothing algorithm is based on: http://www.speech.sri.com/projects/srilm/manpages/ngram-discount.7.html
 
 import sys
 import os
@@ -25,10 +34,10 @@ args = parser.parse_args()
 
 
 class CountsForHistory:
-    ## This class (which is more like a struct) stores the counts seen in a
-    ## particular history-state.  It is used inside class NgramCounts.
-    ## It really does the job of a dict from int to float, but it also
-    ## keeps track of the total count.
+    # This class (which is more like a struct) stores the counts seen in a
+    # particular history-state.  It is used inside class NgramCounts.
+    # It really does the job of a dict from int to float, but it also
+    # keeps track of the total count.
     def __init__(self):
         # The 'lambda: defaultdict(float)' is an anonymous function taking no
         # arguments that returns a new defaultdict(float).
@@ -58,14 +67,14 @@ class CountsForHistory:
 
 
 class NgramCounts:
-    ## A note on data-structure.  Firstly, all words are represented as
-    ## integers.  We store n-gram counts as an array, indexed by (history-length
-    ## == n-gram order minus one) (note: python calls arrays "lists") of dicts
-    ## from histories to counts, where histories are arrays of integers and
-    ## "counts" are dicts from integer to float.  For instance, when
-    ## accumulating the 4-gram count for the '8' in the sequence '5 6 7 8', we'd
-    ## do as follows: self.counts[3][[5,6,7]][8] += 1.0 where the [3] indexes an
-    ## array, the [[5,6,7]] indexes a dict, and the [8] indexes a dict.
+    # A note on data-structure.  Firstly, all words are represented as
+    # integers.  We store n-gram counts as an array, indexed by (history-length
+    # == n-gram order minus one) (note: python calls arrays "lists") of dicts
+    # from histories to counts, where histories are arrays of integers and
+    # "counts" are dicts from integer to float.  For instance, when
+    # accumulating the 4-gram count for the '8' in the sequence '5 6 7 8', we'd
+    # do as follows: self.counts[3][[5,6,7]][8] += 1.0 where the [3] indexes an
+    # array, the [[5,6,7]] indexes a dict, and the [8] indexes a dict.
     def __init__(self, ngram_order, bos_symbol='<s>', eos_symbol='</s>'):
         assert ngram_order >= 2
 
@@ -140,8 +149,8 @@ class NgramCounts:
         # Return value: d is a list of floats, where d[N+1] = D_N
 
         self.d = [0]  # for the lowest order, i.e., 1-gram, we do not need to discount, thus the constant is 0
-                      # perhaps this is a special case: as I assumed we have seen all vocabularies in the dictionary,
-                      # but this is not the case for some other scenarios. We will fix this in the future
+                      # This is a special case: as we currently assumed having seen all vocabularies in the dictionary,
+                      # but perhaps this is not the case for some other scenarios.
         for n in range(1, self.ngram_order):
             this_order_counts = self.counts[n]
             n1 = 0
@@ -154,6 +163,10 @@ class NgramCounts:
             self.d.append(n1 * 1.0 / (n1 + 2 * n2))
 
     def cal_f(self):
+        # f(a_z) is a probability distribution of word sequence a_z.
+        # Typically f(a_z) is discounted to be less than the ML estimate so we have
+        # some leftover probability for the z words unseen in the context (a_).
+        #
         # f(a_z) = (c(a_z) - D0) / c(a_)    ;; for highest order N-grams
         # f(_z)  = (n(*_z) - D1) / n(*_*)	;; for lower order N-grams
 
@@ -353,13 +366,9 @@ if __name__ == "__main__":
         assert os.path.isfile(args.text)
         ngram_counts.add_raw_counts_from_file(args.text)
 
-    # ngram_counts.print_raw_counts("Raw counts:")
-    # ngram_counts.print_modified_counts("Modified counts:")
     ngram_counts.cal_discounting_constants()
     ngram_counts.cal_f()
-    # ngram_counts.print_f("F values (discounted probabilities):")
     ngram_counts.cal_bow()
-    # ngram_counts.print_f_and_bow("F values (discounted probabilities) and back-off weights:")
 
     if args.lm is None:
         ngram_counts.print_as_arpa()
