@@ -25,12 +25,15 @@ if __name__ == "__main__":
             fields = line.split("\t")
 
             word = fields[1]
-            prob = fields[0]
+            prob = float(fields[0])
             if len(fields) > 2:
-                bow = fields[2]
+                bow = float(fields[2])
             else:
                 bow = 0
             arpa1[word] = (prob, bow)
+
+    warning_count = 0
+    line_count = 0
 
     with open(arpa1_filename) as fp:
         for line in fp:
@@ -41,12 +44,13 @@ if __name__ == "__main__":
             if line.startswith("\\") or line.startswith("n"):
                 continue
 
+            line_count += 1
             fields = line.split("\t")
 
             word = fields[1]
-            prob = fields[0]
+            prob = float(fields[0])
             if len(fields) > 2:
-                bow = fields[2]
+                bow = float(fields[2])
             else:
                 bow = 0
 
@@ -54,7 +58,13 @@ if __name__ == "__main__":
             if prob_diff >= threshold:
                 print("warning [prob_diff=" + str(prob_diff) + "]: " + line)
 
-            bow_diff = abs((bow - arpa1[word][1]) / bow)
+            if bow == 0:
+                bow_diff = abs((bow - arpa1[word][1]))
+            else:
+                bow_diff = abs((bow - arpa1[word][1]) / bow)
+
             if bow_diff >= threshold:
+                warning_count += 1
                 print("warning [bow_diff=" + str(bow_diff) + "]: " + line)
 
+    print("finish: line_count=%d, warning_count=%d" % (line_count, warning_count))
